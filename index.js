@@ -181,7 +181,7 @@ function Background() {
     this.x2 = Global.imgObj.bg.w;
     this.height = Global.imgObj.bg.h;
     this.width = Global.imgObj.bg.w;
-    this.step = 2;
+    this.step = 1;
 }
 
 Background.prototype.draw = function() {
