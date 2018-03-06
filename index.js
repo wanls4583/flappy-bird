@@ -94,15 +94,15 @@ Global.imgObj = {
     }
 }
 
-Global.inherit = function(_supper,_class){
-    var F = function(){};
+Global.inherit = function(_supper, _class) {
+    var F = function() {};
     F.prototype = new _supper();
     _class.prototype = new F();
     _class.prototype.constructor = _class;
     //用于调用父类同名方法
-    _class.prototype.supper = function(method,context){
-        if(_supper.prototype[method] && typeof _supper.prototype[method] === 'function'){
-            _supper.prototype[method].apply(context,[].slice.call(arguments,2));
+    _class.prototype.supper = function(method, context) {
+        if (_supper.prototype[method] && typeof _supper.prototype[method] === 'function') {
+            _supper.prototype[method].apply(context, [].slice.call(arguments, 2));
         }
     }
 }
@@ -122,13 +122,14 @@ loadImg('img.png', function(img) {
     init();
 });
 
-function init(){
+function init() {
     var canvas = document.querySelector('#canvas');
     var ctx = canvas.getContext('2d');
-	var scene = new Scene(ctx);
-	scene.addChild(new Background(Global.img));
+    var scene = new Scene(ctx);
+    scene.addChild(new Background(Global.img));
     scene.addChild(new Ground(Global.img));
-	scene.run();
+    scene.addChild(new Pip(Global.img));
+    scene.run();
 }
 
 //场景类
@@ -160,49 +161,49 @@ Scene.prototype.removeChild = function(child) {
 //精灵类
 function Sprite() {}
 
-Sprite.prototype.draw = function(ctx,img){
-    if(this.srcPos instanceof Array || this.desPos instanceof Array){
+Sprite.prototype.draw = function(ctx, img) {
+    if (this.srcPos instanceof Array || this.desPos instanceof Array) {
         var srcPos = this.srcPos;
-        if(!(this.srcPos instanceof Array)){
-            srcPos = _toArray(this.srcPos,this.desPos.length,0);
+        if (!(this.srcPos instanceof Array)) {
+            srcPos = _toArray(this.srcPos, this.desPos.length, 0);
         }
 
         var desPos = this.desPos;
-        if(!(this.desPos instanceof Array)){
-            desPos = _toArray(this.desPos,this.srcPos.length,0);
+        if (!(this.desPos instanceof Array)) {
+            desPos = _toArray(this.desPos, this.srcPos.length, 0);
         }
 
         var srcRect = this.srcRect;
-        if(!(this.srcRect instanceof Array)){
-            srcRect = _toArray(this.srcRect,srcPos.length,1);
+        if (!(this.srcRect instanceof Array)) {
+            srcRect = _toArray(this.srcRect, srcPos.length, 1);
         }
 
         var desRect = this.desRect;
-        if(typeof desRect === 'undefined'){
+        if (typeof desRect === 'undefined') {
             desRect = srcRect;
-        }else if(!(this.desRect instanceof Array)){
-            desRect = _toArray(this.desRect,srcPos.length,1);
+        } else if (!(this.desRect instanceof Array)) {
+            desRect = _toArray(this.desRect, srcPos.length, 1);
         }
 
-        for(var i=0; i<srcPos.length; i++){
-            ctx.drawImage(img, srcPos[i].x, srcPos[i].y, srcRect[i].width, srcRect[i].height, 
+        for (var i = 0; i < srcPos.length; i++) {
+            ctx.drawImage(img, srcPos[i].x, srcPos[i].y, srcRect[i].width, srcRect[i].height,
                 desPos[i].x, desPos[i].y, desRect[i].width, desRect[i].height);
         }
-    }else{
-        ctx.drawImage(img, this.srcPos.x, this.srcPos.y, this.srcRect.width, this.srcRect.height, 
-                desPos.x, desPos.y, this.desRect.width, this.desRect.height);
+    } else {
+        ctx.drawImage(img, this.srcPos.x, this.srcPos.y, this.srcRect.width, this.srcRect.height,
+            desPos.x, desPos.y, this.desRect.width, this.desRect.height);
     }
     //对象扩充成数组
-    function _toArray(obj,length,type){
-        if(!(obj instanceof Array)){
+    function _toArray(obj, length, type) {
+        if (!(obj instanceof Array)) {
             var arr = [];
-            for(var i=0; i<length; i++){
-                if(type==0){
+            for (var i = 0; i < length; i++) {
+                if (type == 0) {
                     arr[i] = {
                         x: obj.x,
                         y: obj.y
                     }
-                }else{
+                } else {
                     arr[i] = {
                         width: obj.width,
                         height: obj.height
@@ -210,12 +211,11 @@ Sprite.prototype.draw = function(ctx,img){
                 }
             }
             return arr;
-        }else{
+        } else {
             return obj;
         }
     }
 }
-
 //背景类
 function Background(img) {
     this.img = img;
@@ -228,7 +228,7 @@ function Background(img) {
     this.desPos = [{
         x: 0,
         y: 0
-    },{
+    }, {
         x: Global.imgObj.bg.w,
         y: 0,
     }]
@@ -241,25 +241,24 @@ function Background(img) {
     this.step = 1;
 }
 //继承精灵类
-Global.inherit(Sprite,Background);
+Global.inherit(Sprite, Background);
 //重写draw方法实现卷轴
 Background.prototype.draw = function(ctx) {
     //调用父类draw方法
-	this.supper('draw',this,ctx,this.img);
+    this.supper('draw', this, ctx, this.img);
 
-    this.desPos[0].x-=this.step;
-    this.desPos[1].x-=this.step;
+    this.desPos[0].x -= this.step;
+    this.desPos[1].x -= this.step;
 
-    if(this.desPos[0].x < -this.srcRect.width){
-    	this.desPos[0].x = Global.imgObj.bg.w;
+    if (this.desPos[0].x < -this.srcRect.width) {
+        this.desPos[0].x = Global.imgObj.bg.w;
     }
 
-    if(this.desPos[1].x < -this.srcRect.width){
-    	this.desPos[1].x = Global.imgObj.bg.w;
+    if (this.desPos[1].x < -this.srcRect.width) {
+        this.desPos[1].x = Global.imgObj.bg.w;
     }
 }
-
-//背景类
+//草地类
 function Ground(img) {
     this.img = img;
 
@@ -271,7 +270,7 @@ function Ground(img) {
     this.desPos = [{
         x: 0,
         y: Global.imgObj.bg.h
-    },{
+    }, {
         x: Global.imgObj.ground.w,
         y: Global.imgObj.bg.h,
     }]
@@ -284,20 +283,52 @@ function Ground(img) {
     this.step = 1;
 }
 //继承精灵类
-Global.inherit(Sprite,Ground);
+Global.inherit(Sprite, Ground);
 //重写draw方法实现卷轴
 Ground.prototype.draw = function(ctx) {
     //调用父类draw方法
-    this.supper('draw',this,ctx,this.img);
+    this.supper('draw', this, ctx, this.img);
 
-    this.desPos[0].x-=this.step;
-    this.desPos[1].x-=this.step;
+    this.desPos[0].x -= this.step;
+    this.desPos[1].x -= this.step;
 
-    if(this.desPos[0].x < -this.srcRect.width){
+    if (this.desPos[0].x < -this.srcRect.width) {
         this.desPos[0].x = Global.imgObj.ground.w;
     }
 
-    if(this.desPos[1].x < -this.srcRect.width){
+    if (this.desPos[1].x < -this.srcRect.width) {
         this.desPos[1].x = Global.imgObj.ground.w;
     }
+}
+//管道类(向上)
+function Pip(img){
+    this.img = img;
+
+    this.srcPos = [{
+        x: Global.imgObj.pie0.x,
+        y: Global.imgObj.pie0.y
+    },{
+        x: Global.imgObj.pie1.x,
+        y: Global.imgObj.pie1.y
+    }]
+
+    this.desPos = [{
+        x: (Global.width/2-Global.imgObj.pie0.width/2)>>0,
+        y: 0
+    },{
+        x: (Global.width/2-Global.imgObj.pie1.width/2)>>0,
+        y: 0
+    }]
+
+    this.srcRect = {
+        height: Global.imgObj.pie1.h,
+        width: Global.imgObj.pie1.w
+    }
+}
+//继承精灵类
+Global.inherit(Sprite, Pip);
+
+Pip.prototype.draw = function(ctx){
+    //调用父类draw方法
+    this.supper('draw', this, ctx, this.img);
 }
