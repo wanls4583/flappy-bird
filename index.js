@@ -1,5 +1,5 @@
 //全局对象
-function Global() {}
+var Global = {};
 
 Global.imgObj = {
     gameOver: {
@@ -94,6 +94,19 @@ Global.imgObj = {
     }
 }
 
+Global.inherit = function(_supper,_class){
+    var F = function(){};
+    F.prototype = new _supper();
+    _class.prototype = new F();
+    _class.prototype.constructor = _class;
+    //用于调用父类同名方法
+    _class.prototype.supper = function(method,context){
+        if(_supper.prototype[method] && typeof _supper.prototype[method] === 'function'){
+            _supper.prototype[method].apply(context,[].slice.call(arguments,2));
+        }
+    }
+}
+
 function loadImg(src, callback) {
     var img = new Image();
     img.src = 'img.png';
@@ -103,58 +116,39 @@ function loadImg(src, callback) {
 }
 
 loadImg('img.png', function(img) {
-    var canvas = document.querySelector('#canvas');
-    Global.img = img;
-    Global.ctx = canvas.getContext('2d');
     Global.width = parseInt(canvas.getAttribute('width'));
     Global.height = parseInt(canvas.getAttribute('height'));
+    Global.img = img;
     init();
 });
 
 function init(){
-	var scene = new Scene();
-	scene.addChild(new Background());
-	scene.addChild(new Ground());
+    var canvas = document.querySelector('#canvas');
+    var ctx = canvas.getContext('2d');
+	var scene = new Scene(ctx);
+	scene.addChild(new Background(Global.img));
+    scene.addChild(new Ground(Global.img));
 	scene.run();
 }
 
-//接口类，用于验证接口是否实现了某些方法
-var Interface = function(name, methods) {
-    this.name = name;
-    this.methods = methods
-}
-Interface.checkImplement = function(obj, inter) {
-    for (var i = 0; i < inter.methods.length; i++) {
-        var method = inter.methods[i]
-        if (!obj[method] || typeof obj[method] != 'function')
-            return false;
-    }
-    return true;
-}
-
 //场景类
-function Scene() {
+function Scene(ctx) {
     this.sprites = [];
+    this.ctx = ctx;
 }
 Scene.prototype.run = function() {
     var self = this;
     for (var i = 0; i < self.sprites.length; i++) {
-        self.sprites[i].draw();
+        self.sprites[i].draw(this.ctx);
     }
     requestAnimationFrame(function() {
         self.run();
     })
 }
 Scene.prototype.addChild = function(child) {
-    if (!Sprite.check(child)) {
-        throw new Error('不是Sprite对象');
-    }
     this.sprites.push(child);
 }
 Scene.prototype.removeChild = function(child) {
-    if (!Sprite.check(child)) {
-        throw new Error('不是Sprite对象');
-    }
     this.sprites = this.sprites.filter(function(item) {
         if (item === child) {
             child.destroy();
@@ -165,67 +159,145 @@ Scene.prototype.removeChild = function(child) {
 
 //精灵类
 function Sprite() {}
-//检查是否为sprite对象
-Sprite.check = function(obj) {
-    var sprite = new Interface('Sprite', ['draw', 'destroy']);
-    return Interface.checkImplement(obj, sprite);
+
+Sprite.prototype.draw = function(ctx,img){
+    if(this.srcPos instanceof Array || this.desPos instanceof Array){
+        var srcPos = this.srcPos;
+        if(!(this.srcPos instanceof Array)){
+            srcPos = _toArray(this.srcPos,this.desPos.length,0);
+        }
+
+        var desPos = this.desPos;
+        if(!(this.desPos instanceof Array)){
+            desPos = _toArray(this.desPos,this.srcPos.length,0);
+        }
+
+        var srcRect = this.srcRect;
+        if(!(this.srcRect instanceof Array)){
+            srcRect = _toArray(this.srcRect,srcPos.length,1);
+        }
+
+        var desRect = this.desRect;
+        if(typeof desRect === 'undefined'){
+            desRect = srcRect;
+        }else if(!(this.desRect instanceof Array)){
+            desRect = _toArray(this.desRect,srcPos.length,1);
+        }
+
+        for(var i=0; i<srcPos.length; i++){
+            ctx.drawImage(img, srcPos[i].x, srcPos[i].y, srcRect[i].width, srcRect[i].height, 
+                desPos[i].x, desPos[i].y, desRect[i].width, desRect[i].height);
+        }
+    }else{
+        ctx.drawImage(img, this.srcPos.x, this.srcPos.y, this.srcRect.width, this.srcRect.height, 
+                desPos.x, desPos.y, this.desRect.width, this.desRect.height);
+    }
+    //对象扩充成数组
+    function _toArray(obj,length,type){
+        if(!(obj instanceof Array)){
+            var arr = [];
+            for(var i=0; i<length; i++){
+                if(type==0){
+                    arr[i] = {
+                        x: obj.x,
+                        y: obj.y
+                    }
+                }else{
+                    arr[i] = {
+                        width: obj.width,
+                        height: obj.height
+                    }
+                }
+            }
+            return arr;
+        }else{
+            return obj;
+        }
+    }
 }
 
 //背景类
-function Background() {
-    this.src_x = Global.imgObj.bg.x;
-    this.src_y = Global.imgObj.bg.y;
-    //第一张背景图的x坐标
-    this.x1 = 0;
-    //第二张背景图的x坐标
-    this.x2 = Global.imgObj.bg.w;
-    this.height = Global.imgObj.bg.h;
-    this.width = Global.imgObj.bg.w;
+function Background(img) {
+    this.img = img;
+
+    this.srcPos = {
+        x: Global.imgObj.bg.x,
+        y: Global.imgObj.bg.y
+    }
+
+    this.desPos = [{
+        x: 0,
+        y: 0
+    },{
+        x: Global.imgObj.bg.w,
+        y: 0,
+    }]
+
+    this.srcRect = {
+        height: Global.imgObj.bg.h,
+        width: Global.imgObj.bg.w
+    }
+
     this.step = 1;
 }
+//继承精灵类
+Global.inherit(Sprite,Background);
+//重写draw方法实现卷轴
+Background.prototype.draw = function(ctx) {
+    //调用父类draw方法
+	this.supper('draw',this,ctx,this.img);
 
-Background.prototype.draw = function() {
-	//依次画出两张背景图，实现卷轴效果
-    Global.ctx.drawImage(Global.img, this.src_x, this.src_y, this.width, this.height, this.x1, 0, this.width, this.height);
-    Global.ctx.drawImage(Global.img, this.src_x, this.src_y, this.width, this.height, this.x2, 0, this.width, this.height);
-    this.x1-=this.step;
-    this.x2-=this.step;
-    if(this.x1 < -this.width){
-    	this.x1 = Global.imgObj.bg.w;
+    this.desPos[0].x-=this.step;
+    this.desPos[1].x-=this.step;
+
+    if(this.desPos[0].x < -this.srcRect.width){
+    	this.desPos[0].x = Global.imgObj.bg.w;
     }
-    if(this.x2 < -this.width){
-    	this.x2 = Global.imgObj.bg.w;
-    }
-}
 
-Background.prototype.destroy = function(){}
-
-//草地类
-function Ground() {
-    this.src_x = Global.imgObj.ground.x;
-    this.src_y = Global.imgObj.ground.y;
-    //第一张草地图的x坐标
-    this.x1 = 0;
-    //第二张草地图的x坐标
-    this.x2 = Global.imgObj.ground.w;
-    this.height = Global.imgObj.ground.h;
-    this.width = Global.imgObj.ground.w;
-    this.step = 2;
-}
-
-Ground.prototype.draw = function() {
-	//依次画出两张草地图，实现卷轴效果
-    Global.ctx.drawImage(Global.img, this.src_x, this.src_y, this.width, this.height, this.x1, Global.imgObj.bg.h, this.width, this.height);
-    Global.ctx.drawImage(Global.img, this.src_x, this.src_y, this.width, this.height, this.x2, Global.imgObj.bg.h, this.width, this.height);
-    this.x1-=this.step;
-    this.x2-=this.step;
-    if(this.x1 < -this.width){
-    	this.x1 = Global.imgObj.ground.w;
-    }
-    if(this.x2 < -this.width){
-    	this.x2 = Global.imgObj.ground.w;
+    if(this.desPos[1].x < -this.srcRect.width){
+    	this.desPos[1].x = Global.imgObj.bg.w;
     }
 }
 
-Ground.prototype.destroy = function(){}
+//背景类
+function Ground(img) {
+    this.img = img;
 
+    this.srcPos = {
+        x: Global.imgObj.ground.x,
+        y: Global.imgObj.ground.y
+    }
+
+    this.desPos = [{
+        x: 0,
+        y: Global.imgObj.bg.h
+    },{
+        x: Global.imgObj.ground.w,
+        y: Global.imgObj.bg.h,
+    }]
+
+    this.srcRect = {
+        height: Global.imgObj.ground.h,
+        width: Global.imgObj.ground.w
+    }
+
+    this.step = 1;
+}
+//继承精灵类
+Global.inherit(Sprite,Ground);
+//重写draw方法实现卷轴
+Ground.prototype.draw = function(ctx) {
+    //调用父类draw方法
+    this.supper('draw',this,ctx,this.img);
+
+    this.desPos[0].x-=this.step;
+    this.desPos[1].x-=this.step;
+
+    if(this.desPos[0].x < -this.srcRect.width){
+        this.desPos[0].x = Global.imgObj.ground.w;
+    }
+
+    if(this.desPos[1].x < -this.srcRect.width){
+        this.desPos[1].x = Global.imgObj.ground.w;
+    }
+}
