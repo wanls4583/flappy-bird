@@ -74,13 +74,13 @@ Global.imgObj = {
         w: 34,
         h: 24
     },
-    pie0: {
+    pip0: {
         x: 0,
         y: 750,
         w: 52,
         h: 420
     },
-    pie1: {
+    pip1: {
         x: 70,
         y: 750,
         w: 52,
@@ -303,27 +303,8 @@ Ground.prototype.draw = function(ctx) {
 //管道类(向上)
 function Pip(img){
     this.img = img;
-
-    this.srcPos = [{
-        x: Global.imgObj.pie0.x,
-        y: Global.imgObj.pie0.y
-    },{
-        x: Global.imgObj.pie1.x,
-        y: Global.imgObj.pie1.y
-    }]
-
-    this.desPos = [{
-        x: (Global.width/2-Global.imgObj.pie0.width/2)>>0,
-        y: 0
-    },{
-        x: (Global.width/2-Global.imgObj.pie1.width/2)>>0,
-        y: 0
-    }]
-
-    this.srcRect = {
-        height: Global.imgObj.pie1.h,
-        width: Global.imgObj.pie1.w
-    }
+    //产生一组管道
+    this.createPip();
 }
 //继承精灵类
 Global.inherit(Sprite, Pip);
@@ -331,4 +312,34 @@ Global.inherit(Sprite, Pip);
 Pip.prototype.draw = function(ctx){
     //调用父类draw方法
     this.supper('draw', this, ctx, this.img);
+}
+//产生一组管道(上和下)
+Pip.prototype.createPip = function(){
+    var upSrcPos = {
+        x: Global.imgObj.pip1.x,
+        y: (Global.imgObj.pip1.y+Math.random()*Global.imgObj.pip1.h)>>0
+    }
+    var upRect = {
+        width: Global.imgObj.pip1.w,
+        height: Global.imgObj.pip1.h-(upSrcPos.y-Global.imgObj.pip1.y)
+    }
+    var upDesPos = {
+        x: (Global.width/2 - Global.imgObj.pip1.w/2)>>0,
+        y: 0
+    }
+    var downSrcPos = {
+        x: Global.imgObj.pip0.x,
+        y: Global.imgObj.pip0.y
+    }
+    var downRect = {
+        width: Global.imgObj.pip0.w,
+        height: Global.imgObj.bg.h - upRect.height - 100
+    }
+    var downDesPos = {
+        x: (Global.width/2 - Global.imgObj.pip0.w/2)>>0,
+        y: upRect.height + 100
+    }
+    this.srcPos = [upSrcPos,downSrcPos];
+    this.srcRect = [upRect,downRect];
+    this.desPos = [upDesPos,downDesPos];
 }
