@@ -126,18 +126,39 @@ function init() {
     var canvas = document.querySelector('#canvas');
     var ctx = canvas.getContext('2d');
     var scene = new Scene(ctx);
+    var bird = new Bird(Global.img);
     scene.addChild(new Background(Global.img));
     scene.addChild(new Ground(Global.img));
-    scene.addChild(new Pip(Global.img));
-    scene.addChild(new Pip(Global.img,1));
-    scene.addChild(new Bird(Global.img));
+    scene.addChild(new GameBegin(Global.img));
     scene.run();
+
+    var hasKeyUp = true; //防止连续触发键盘事件
+    document.onkeydown = function(event){
+        if(event.keyCode==38 && hasKeyUp){
+            hasKeyUp = false;
+            bird.up();
+        }
+    }
+    document.onkeyup = function(event){
+        if(event.keyCode==38){
+            hasKeyUp = true;
+            bird.down();
+        }
+    }
+    //鼠标事件
+    document.ontouchstart = function(event){
+        bird.up();
+    }
+    document.ontouchend = function(event){
+        bird.down();
+    }
 }
 
 //场景类
 function Scene(ctx) {
     this.sprites = [];
     this.ctx = ctx;
+    this.stopAni = false;
 }
 Scene.prototype.run = function() {
     var self = this;
@@ -145,8 +166,13 @@ Scene.prototype.run = function() {
         self.sprites[i].draw(this.ctx);
     }
     requestAnimationFrame(function() {
-        self.run();
+        if(!self.stopAni){
+            self.run();
+        }
     })
+}
+Scene.prototype.stop = function(){
+    this.stopAni = true;
 }
 Scene.prototype.addChild = function(child) {
     this.sprites.push(child);
@@ -155,9 +181,6 @@ Scene.prototype.addChild = function(child) {
 }
 Scene.prototype.removeChild = function(child) {
     this.sprites = this.sprites.filter(function(item) {
-        if (item === child) {
-            child.destroy();
-        }
         return item != child;
     });
 }
@@ -177,32 +200,32 @@ Sprite.prototype.draw = function(ctx, img) {
     }
 }
 //碰撞检测(矩形检测)
-Sprite.prototype.rectCollisioDetect = function(){
+Sprite.prototype.rectCollisioDetect = function() {
     var sprites = this.scene.sprites;
-    for(var i=0; i<sprites.length; i++){
+    for (var i = 0; i < sprites.length; i++) {
         var sprite = sprites[i];
-        if(sprite!=this && sprite.ifColli){
+        if (sprite != this && sprite.ifColli) {
             var pos1 = this.desPos;
             var rect1 = this.desRect;
-            if (!(pos1 instanceof Array)){
+            if (!(pos1 instanceof Array)) {
                 pos1 = [this.desPos]
             }
-            if (!(rect1 instanceof Array)){
+            if (!(rect1 instanceof Array)) {
                 rect1 = [this.desRect]
             }
             var pos2 = sprite.desPos;
             var rect2 = sprite.desRect;
-            if (!(pos2 instanceof Array)){
+            if (!(pos2 instanceof Array)) {
                 pos2 = [sprite.desPos]
             }
-            if (!(rect2 instanceof Array)){
+            if (!(rect2 instanceof Array)) {
                 rect2 = [sprite.desRect]
             }
 
-            for(var n=0; n<pos1.length; n++){
-                for( var m=0; m<pos2.length; m++){
-                    if(_detect(pos1[n].x,pos1[n].y,rect1[n].width,rect1[n].height,
-                        pos2[m].x,pos2[m].y,rect2[m].width,rect2[m].height)){
+            for (var n = 0; n < pos1.length; n++) {
+                for (var m = 0; m < pos2.length; m++) {
+                    if (_detect(pos1[n].x, pos1[n].y, rect1[n].width, rect1[n].height,
+                            pos2[m].x, pos2[m].y, rect2[m].width, rect2[m].height)) {
                         return true;
                     }
                 }
@@ -211,24 +234,24 @@ Sprite.prototype.rectCollisioDetect = function(){
     }
     return false;
 
-    function _detect(x1,y1,w1,h1,x2,y2,w2,h2){
-        if(x1<x2){
-            if(y1<y2){
-                if(x1+w1>x2 && y1+h1>y2){
+    function _detect(x1, y1, w1, h1, x2, y2, w2, h2) {
+        if (x1 < x2) {
+            if (y1 < y2) {
+                if (x1 + w1 > x2 && y1 + h1 > y2) {
                     return true;
                 }
-            }else{
-                if(x1+w1>x2 && y2+h2>y1){
+            } else {
+                if (x1 + w1 > x2 && y2 + h2 > y1) {
                     return true;
                 }
             }
-        }else{
-            if(y1<y2){
-                if(x2+w2>x1 && y1+h1>y2){
+        } else {
+            if (y1 < y2) {
+                if (x2 + w2 > x1 && y1 + h1 > y2) {
                     return true;
                 }
-            }else{
-                if(x2+w2>x1 && y2+h2>y1){
+            } else {
+                if (x2 + w2 > x1 && y2 + h2 > y1) {
                     return true;
                 }
             }
@@ -243,7 +266,7 @@ function Background(img) {
     this.srcPos = [{
         x: Global.imgObj.bg.x,
         y: Global.imgObj.bg.y
-    },{
+    }, {
         x: Global.imgObj.bg.x,
         y: Global.imgObj.bg.y
     }]
@@ -259,7 +282,7 @@ function Background(img) {
     this.srcRect = this.desRect = this.srcRect = [{
         height: Global.imgObj.bg.h,
         width: Global.imgObj.bg.w
-    },{
+    }, {
         height: Global.imgObj.bg.h,
         width: Global.imgObj.bg.w
     }]
@@ -287,10 +310,13 @@ Background.prototype.draw = function(ctx) {
 //草地类
 function Ground(img) {
     this.img = img;
+    //是否进行碰撞检测
+    this.ifColli = true;
+
     this.srcPos = [{
         x: Global.imgObj.ground.x,
         y: Global.imgObj.ground.y
-    },{
+    }, {
         x: Global.imgObj.ground.x,
         y: Global.imgObj.ground.y
     }]
@@ -306,7 +332,7 @@ function Ground(img) {
     this.desRect = this.srcRect = [{
         height: Global.imgObj.ground.h,
         width: Global.imgObj.ground.w
-    },{
+    }, {
         height: Global.imgObj.ground.h,
         width: Global.imgObj.ground.w
     }]
@@ -332,7 +358,7 @@ Ground.prototype.draw = function(ctx) {
     }
 }
 //管道类(向上)
-function Pip(img,type){
+function Pip(img, type) {
     this.img = img;
     //允许碰撞检测
     this.ifColli = true;
@@ -343,25 +369,25 @@ function Pip(img,type){
 //继承精灵类
 Global.inherit(Sprite, Pip);
 
-Pip.prototype.draw = function(ctx){
+Pip.prototype.draw = function(ctx) {
     //调用父类draw方法
     this.supper('draw', this, ctx, this.img);
     this.desPos[0].x -= this.step;
     this.desPos[1].x -= this.step;
     //超出屏幕后，产生新的一组管道
-    if(this.desPos[0].x < -Global.imgObj.pip0.w){
+    if (this.desPos[0].x < -Global.imgObj.pip0.w) {
         this.createPip();
     }
 }
 //产生一组管道(上和下)
-Pip.prototype.createPip = function(type){
+Pip.prototype.createPip = function(type) {
     var upSrcPos = {
         x: Global.imgObj.pip1.x,
-        y: (Global.imgObj.pip1.y+Math.random()*(Global.imgObj.pip1.h-100))>>0
+        y: (Global.imgObj.pip1.y + Math.random() * (Global.imgObj.pip1.h - 100)) >> 0
     }
     var upRect = {
         width: Global.imgObj.pip1.w,
-        height: Global.imgObj.pip1.h-(upSrcPos.y-Global.imgObj.pip1.y)
+        height: Global.imgObj.pip1.h - (upSrcPos.y - Global.imgObj.pip1.y)
     }
     var upDesPos = {
         x: Global.width,
@@ -379,45 +405,53 @@ Pip.prototype.createPip = function(type){
         x: Global.width,
         y: upRect.height + 100
     }
-    if(type){
-        upDesPos.x = (Global.width*3/2 + Global.imgObj.pip0.w/2)>>0;
-        downDesPos.x = (Global.width*3/2 + Global.imgObj.pip0.w/2)>>0;
+    if (type) {
+        upDesPos.x = (Global.width * 3 / 2 + Global.imgObj.pip0.w / 2) >> 0;
+        downDesPos.x = (Global.width * 3 / 2 + Global.imgObj.pip0.w / 2) >> 0;
     }
-    this.srcPos = [upSrcPos,downSrcPos];
-    this.desRect = this.srcRect = [upRect,downRect];
-    this.desPos = [upDesPos,downDesPos];
+    this.srcPos = [upSrcPos, downSrcPos];
+    this.desRect = this.srcRect = [upRect, downRect];
+    this.desPos = [upDesPos, downDesPos];
 }
 //鸟类
-function Bird(img){
+function Bird(img) {
     this.img = img;
+
+    this.live = true;
+
+    this.ifColli = true;
 
     this.pos = [{
         x: Global.imgObj.bird0.x,
         y: Global.imgObj.bird0.y
-    },{
+    }, {
         x: Global.imgObj.bird1.x,
         y: Global.imgObj.bird1.y
-    },{
+    }, {
         x: Global.imgObj.bird2.x,
         y: Global.imgObj.bird2.y
     }];
 
     this.type = 0;
+    //加速度
+    this.a = 0.5;
+    //速度
+    this.step = 1;
 
     this.srcPos = this.pos[this.type];
 
     this.desPos = {
-        x: (Global.width/3)>>0,
-        y: (Global.imgObj.bg.h/2)>>0
+        x: (Global.width / 3) >> 0,
+        y: (Global.imgObj.bg.h / 2) >> 0
     };
 
     this.rect = [{
         height: Global.imgObj.bird0.h,
         width: Global.imgObj.bird0.w
-    },{
+    }, {
         height: Global.imgObj.bird1.h,
         width: Global.imgObj.bird1.w
-    },{
+    }, {
         height: Global.imgObj.bird2.h,
         width: Global.imgObj.bird2.w
     }]
@@ -427,19 +461,123 @@ function Bird(img){
 //继承精灵类
 Global.inherit(Sprite, Bird);
 
-Bird.prototype.draw = function(ctx,img){
+Bird.prototype.draw = function(ctx, img) {
     //调用父类draw方法
     this.supper('draw', this, ctx, this.img);
 
-    this.type = ++this.type%3;
+    this.type = ++this.type % 3;
 
     this.srcPos = this.pos[this.type];
 
     this.srcRect = this.desRect = this.rect[this.type];
 
+    this.desPos.y += this.step;
+
+    if(this.desPos.y + this.srcRect.height > Global.imgObj.bg.h){
+        this.desPos.y = Global.imgObj.bg.h - this.srcRect.height + 2;
+    }else if(this.desPos.y < 0){
+        this.desPos.y = 0;
+    }
+
+    if (Math.abs(this.step) < 5) {
+        this.step += this.a;
+    }
     this.collisioDetect();
 }
+//鸟儿向上飞
+Bird.prototype.up = function(){
+    this.step = -1;
+    this.a = -0.5;
+}
+//鸟儿向上飞
+Bird.prototype.down = function(){
+    this.step = 1;
+    this.a = 0.5;
+}
 
-Bird.prototype.collisioDetect = function(){
-    console.log(this.rectCollisioDetect());
+Bird.prototype.collisioDetect = function() {
+    if (this.rectCollisioDetect() && this.live) {
+        this.live = false;
+        this.scene.stop();
+        Global.gameOver = new GameOver(Global.img);
+        this.scene.addChild(Global.gameOver);
+        // this.scene.removeChild(this);
+        // console.log('dead');
+    }
+}
+//结束界面类
+function GameOver(img){
+    this.img = img;
+
+    this.srcPos = [{
+        x: Global.imgObj.gameOver.x,
+        y: Global.imgObj.gameOver.y
+    },{
+        x: Global.imgObj.readyBtn0.x,
+        y: Global.imgObj.readyBtn0.y
+    }]
+
+    this.desPos = [{
+        x: (Global.width/2 - Global.imgObj.gameOver.w/2)>>0,
+        y: 250
+    },{
+        x: (Global.width/2 - Global.imgObj.readyBtn0.w/2)>>0,
+        y: 400
+    }]
+
+    this.desRect = this.srcRect = [{
+        width: Global.imgObj.gameOver.w,
+        height: Global.imgObj.gameOver.h
+    },{
+        width: Global.imgObj.readyBtn0.w,
+        height: Global.imgObj.readyBtn0.h
+    }]
+}
+//继承精灵类
+Global.inherit(Sprite, GameOver);
+
+GameOver.prototype.draw = function(ctx, img) {
+    this.supper('draw', this, ctx, this.img);
+}
+//开始界面类
+function GameBegin(img){
+    this.img = img;
+
+    this.srcPos = [{
+        x: Global.imgObj.getReady.x,
+        y: Global.imgObj.getReady.y
+    },{
+        x: Global.imgObj.readyBtn0.x,
+        y: Global.imgObj.readyBtn0.y
+    }]
+
+    this.desPos = [{
+        x: (Global.width/2 - Global.imgObj.getReady.w/2)>>0,
+        y: 250
+    },{
+        x: (Global.width/2 - Global.imgObj.readyBtn0.w/2)>>0,
+        y: 400
+    }]
+
+    this.desRect = this.srcRect = [{
+        width: Global.imgObj.getReady.w,
+        height: Global.imgObj.getReady.h
+    },{
+        width: Global.imgObj.readyBtn0.w,
+        height: Global.imgObj.readyBtn0.h
+    }]
+}
+//继承精灵类
+Global.inherit(Sprite, GameBegin);
+
+GameBegin.prototype.draw = function(ctx, img) {
+    this.supper('draw', this, ctx, this.img);
+}
+
+GameBegin.prototype.start = function(){
+    var scene = this.scene;
+    scene.removeChild(this);
+    scene.addChild(new Pip(Global.img));
+    scene.addChild(new Pip(Global.img, 1));
+    scene.addChild(bird);
 }
