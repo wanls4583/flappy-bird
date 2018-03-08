@@ -174,7 +174,11 @@ Scene.prototype.initEvent = function(){
                     offsetX = event.clientX + event.currentTarget.offsetLeft;
                     offsetY = event.clientY + event.currentTarget.offsetTop;
                     break;
-                case 'touchstart':
+                case 'mousedown':
+                    offsetX = event.clientX + event.currentTarget.offsetLeft;
+                    offsetY = event.clientY + event.currentTarget.offsetTop;
+                    break;
+                case 'mouseup':
                     offsetX = event.clientX + event.currentTarget.offsetLeft;
                     offsetY = event.clientY + event.currentTarget.offsetTop;
                     break;
@@ -586,6 +590,8 @@ Bird.prototype.collisioDetect = function() {
 }
 //结束界面类
 function GameOver(img){
+    this.eventListener = {};
+
     this.img = img;
 
     this.srcPos = [{
@@ -625,7 +631,7 @@ GameOver.prototype.draw = function(ctx, img) {
 
 GameOver.prototype.restart = function(){
     Global.pipG0.createPip();
-    Global.pipG0.createPip(1);
+    Global.pipG1.createPip(1);
     Global.bird.desPos.y = (Global.imgObj.bg.h / 2) >> 0;
     Global.bird.live = true;
     this.scene.removeChild(this);
