@@ -582,8 +582,6 @@ Bird.prototype.collisioDetect = function() {
         this.scene.stop();
         Global.gameOver = new GameOver(Global.img);
         this.scene.addChild(Global.gameOver);
-        // this.scene.removeChild(this);
-        // console.log('dead');
     }
 }
 //结束界面类
@@ -629,6 +627,8 @@ GameOver.prototype.restart = function(){
     Global.pipG0.createPip();
     Global.pipG0.createPip(1);
     Global.bird.desPos.y = (Global.imgObj.bg.h / 2) >> 0;
+    Global.bird.live = true;
+    this.scene.removeChild(this);
     this.scene.run();
 }
 //开始界面类
