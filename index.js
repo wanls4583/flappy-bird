@@ -107,6 +107,10 @@ Global.inherit = function(_supper, _class) {
     }
 }
 
+Global.on = function(dom,type,callback){
+
+}
+
 function loadImg(src, callback) {
     var img = new Image();
     img.src = 'img.png';
@@ -124,44 +128,85 @@ loadImg('img.png', function(img) {
 
 function init() {
     var canvas = document.querySelector('#canvas');
-    var ctx = canvas.getContext('2d');
-    var scene = new Scene(ctx);
-    var bird = new Bird(Global.img);
+    var scene = new Scene(canvas);
     scene.addChild(new Background(Global.img));
     scene.addChild(new Ground(Global.img));
     scene.addChild(new GameBegin(Global.img));
     scene.run();
-
-    var hasKeyUp = true; //防止连续触发键盘事件
-    document.onkeydown = function(event){
-        if(event.keyCode==38 && hasKeyUp){
-            hasKeyUp = false;
-            bird.up();
-        }
-    }
-    document.onkeyup = function(event){
-        if(event.keyCode==38){
-            hasKeyUp = true;
-            bird.down();
-        }
-    }
-    //鼠标事件
-    document.ontouchstart = function(event){
-        bird.up();
-    }
-    document.ontouchend = function(event){
-        bird.down();
-    }
 }
 
 //场景类
-function Scene(ctx) {
+function Scene(canvas) {
     this.sprites = [];
-    this.ctx = ctx;
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
     this.stopAni = false;
+    this.initEvent();
 }
+
+Scene.prototype.initEvent = function(){
+    var self = this;
+    _bind('touchstart');
+    _bind('touchmove');
+    _bind('touchend');
+    _bind('click');
+    _bind('mousedown');
+    _bind('mouseup');
+    //绑定事件到canvas
+    function _bind(eventType){
+        this.canvas.addEventListener(eventType,function(event){
+            var offsetX = 0;
+            var offsetY = 0;
+            switch(eventType){
+                case 'touchstart':
+                    offsetX = event.touches[0].clientX + event.currentTarget.offsetLeft;
+                    offsetY = event.touches[0].clientY + event.currentTarget.offsetTop;
+                    break;
+                case 'touchmove':
+                    offsetX = event.changedTouches[0].clientX + event.currentTarget.offsetLeft;
+                    offsetY = event.changedTouches[0].clientY + event.currentTarget.offsetTop;
+                    break;
+                case 'touchend':
+                    offsetX = event.changedTouches[0].clientX + event.currentTarget.offsetLeft;
+                    offsetY = event.changedTouches[0].clientY + event.currentTarget.offsetTop;
+                    break;
+                case 'click':
+                    offsetX = event.clientX + event.currentTarget.offsetLeft;
+                    offsetY = event.clientY + event.currentTarget.offsetTop;
+                    break;
+                case 'touchstart':
+                    offsetX = event.clientX + event.currentTarget.offsetLeft;
+                    offsetY = event.clientY + event.currentTarget.offsetTop;
+                    break;
+            }
+
+            for(var i=self.sprites.length; i>0; i--){
+                var sprite = self.sprites[i-1];
+                if(_checkIn(sprite,offsetX,offsetY) && sprite.eventListener[eventType]){
+                    sprite.trigger(eventType);
+                    break;
+                }
+            }
+        });
+    }
+    //判断是否在子元素类
+    function _checkIn(sprite,offsetX,offsetY){
+        for(var i=0; i<sprite.desPos.length; i++){
+            var x = sprite.desPos[i].x;
+            var y = sprite.desPos[i].y;
+            var width = sprite.desRect[i].width;
+            var height = sprite.desRect[i].height;
+            if(x<offsetX && x+width>offsetX && y<offsetY && y+height>offsetY){
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
 Scene.prototype.run = function() {
     var self = this;
+    this.stopAni = false;
     for (var i = 0; i < self.sprites.length; i++) {
         self.sprites[i].draw(this.ctx);
     }
@@ -171,22 +216,30 @@ Scene.prototype.run = function() {
         }
     })
 }
+
 Scene.prototype.stop = function(){
     this.stopAni = true;
 }
+
 Scene.prototype.addChild = function(child) {
     this.sprites.push(child);
     //子元素scene属性指向场景
     child.scene = this;
 }
+
 Scene.prototype.removeChild = function(child) {
     this.sprites = this.sprites.filter(function(item) {
         return item != child;
     });
 }
 
+Scene.prototype.removeAllChild = function(child) {
+    this.sprites = [];
+}
 //精灵类
-function Sprite() {}
+function Sprite() {
+    this.eventListener = {};
+}
 
 Sprite.prototype.draw = function(ctx, img) {
     if (this.desPos instanceof Array) {
@@ -199,6 +252,34 @@ Sprite.prototype.draw = function(ctx, img) {
             this.desPos.x, this.desPos.y, this.desRect.width, this.desRect.height);
     }
 }
+//绑定事件
+Sprite.prototype.on = function(eventType,callback){
+    if(this.eventListener[eventType]){
+        this.eventListener[eventType].push(callback);
+    }else{
+        this.eventListener[eventType] = [callback];
+    }
+}
+//解除事件
+Sprite.prototype.off = function(eventType,callback){
+    if(!eventType){
+        this.eventListener = {};
+    }else if(!callback && this.eventListener[eventType]){
+        this.eventListener[eventType] = null;
+    }else if(this.eventListener[eventType]){
+        var index =  this.eventListener[eventType].indexOf(callback);
+        if(index>-1){
+            this.eventListener[eventType].splice(index,1);
+        }
+    }
+}
+//触发事件
+Sprite.prototype.trigger = function(eventType){
+    for(var i=0; this.eventListener[eventType] && i<this.eventListener[eventType].length; i++){
+        this.eventListener[eventType][i].apply(this);
+    }
+}
+
 //碰撞检测(矩形检测)
 Sprite.prototype.rectCollisioDetect = function() {
     var sprites = this.scene.sprites;
@@ -532,12 +613,23 @@ function GameOver(img){
         width: Global.imgObj.readyBtn0.w,
         height: Global.imgObj.readyBtn0.h
     }]
+
+    this.on('touchstart',function(){
+        this.restart();
+    })
 }
 //继承精灵类
 Global.inherit(Sprite, GameOver);
 
 GameOver.prototype.draw = function(ctx, img) {
     this.supper('draw', this, ctx, this.img);
+}
+
+GameOver.prototype.restart = function(){
+    Global.pipG0.createPip();
+    Global.pipG0.createPip(1);
+    Global.bird.desPos.y = (Global.imgObj.bg.h / 2) >> 0;
+    this.scene.run();
 }
 //开始界面类
 function GameBegin(img){
@@ -566,6 +658,10 @@ function GameBegin(img){
         width: Global.imgObj.readyBtn0.w,
         height: Global.imgObj.readyBtn0.h
     }]
+
+    this.on('touchstart',function(){
+        this.start();
+    })
 }
 //继承精灵类
 Global.inherit(Sprite, GameBegin);
@@ -576,8 +672,37 @@ GameBegin.prototype.draw = function(ctx, img) {
 
 GameBegin.prototype.start = function(){
     var scene = this.scene;
+    var bird = new Bird(Global.img);
+    var pipG0 = new Pip(Global.img);
+    var pipG1 = new Pip(Global.img, 1);
     scene.removeChild(this);
-    scene.addChild(new Pip(Global.img));
-    scene.addChild(new Pip(Global.img, 1));
+    scene.addChild(pipG0);
+    scene.addChild(pipG1);
     scene.addChild(bird);
+    Global.pipG0 = pipG0;
+    Global.pipG1 = pipG1;
+    Global.bird = bird;
+    var hasKeyUp = true; //防止连续触发键盘事件
+    document.onkeydown = function(event){
+        if(event.keyCode==38 && hasKeyUp){
+            hasKeyUp = false;
+            bird.up();
+        }
+    }
+    document.onkeyup = function(event){
+        if(event.keyCode==38){
+            hasKeyUp = true;
+            bird.down();
+        }
+    }
+    setTimeout(function(){
+        //鼠标事件
+        document.addEventListener('touchstart',function(event){
+            bird.up();
+        })
+        document.addEventListener('touchend',function(event){
+            bird.down();
+        })
+    },50);
+    
 }
